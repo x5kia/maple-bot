@@ -1,8 +1,66 @@
-# ... existing code ...
+from interception.stroke import key_stroke
+import time
+
+# Scancodes for arrow and alphanumeric/modifier keys should be separated. They have different key-states.
+SC_DECIMAL_ARROW = {
+    "LEFT": 75, "RIGHT": 77, "DOWN": 80, "UP": 72,
+}
+
+# 【重點修改】你可以在這裡擴充你要使用的按鍵，例如補上 Z, X, C, Insert 等等
+SC_DECIMAL = {
+    "ALT": 56, "SPACE": 57, "CTRL": 29, "SHIFT": 42,
+    "A": 30, "S": 31, "D": 32, "F": 33,
+    "Q": 16, "W": 17, "E": 18, "R": 19,
+    "1": 2, "2": 3, "3": 4, "4": 5
+}
+
+# Change these to your own settings.
+JUMP_KEY = "ALT"
+# 經典版通常沒有上跳技能，所以把原本的 ROPE_LIFT 移除了
+
+
+class Player:
+    def __init__(self, context, device, game):
+        self.game = game
+        # interception
+        self.context = context
+        self.device = device
+
+    def release_all(self):
+        for key in SC_DECIMAL_ARROW:
+            self.context.send(self.device, key_stroke(SC_DECIMAL_ARROW[key], 3, 0))
+        for key in SC_DECIMAL:
+            self.context.send(self.device, key_stroke(SC_DECIMAL[key], 1, 0))
+
+    def press(self, key):
+        """
+        Mimics a human key-press.
+        Delay between down-stroke and up-stroke was tested to be around 50 ms.
+        """
+        if key in SC_DECIMAL_ARROW:
+            self.context.send(self.device, key_stroke(SC_DECIMAL_ARROW[key], 2, 0))
+            time.sleep(0.05)
+            self.context.send(self.device, key_stroke(SC_DECIMAL_ARROW[key], 3, 0))
+        else:
+            self.context.send(self.device, key_stroke(SC_DECIMAL[key], 0, 0))
+            time.sleep(0.05)
+            self.context.send(self.device, key_stroke(SC_DECIMAL[key], 1, 0))
+
+    def release(self, key):
+        if key in SC_DECIMAL_ARROW:
+            self.context.send(self.device, key_stroke(SC_DECIMAL_ARROW[key], 3, 0))
+        else:
+            self.context.send(self.device, key_stroke(SC_DECIMAL[key], 1, 0))
+
+    def hold(self, key):
+        if key in SC_DECIMAL_ARROW:
+            self.context.send(self.device, key_stroke(SC_DECIMAL_ARROW[key], 2, 0))
+        else:
+            self.context.send(self.device, key_stroke(SC_DECIMAL[key], 0, 0))
+
     def go_to(self, target):
         """
-        Attempts to move player to a specific (x, y) location on the screen.
-        【重點修改】已將此函式簡化為「純水平(左右)移動」，忽略 Y 軸(高度)差異。
+        【改寫版】只針對 X 軸（左右）移動，忽略 Y 軸（高度）。
         適合經典版無上跳技能的職業在平地來回巡邏打怪。
         """
         print(f"🏃 開始水平移動前往 X 座標: {target[0]} (忽略 Y 軸)")
@@ -30,7 +88,6 @@
                     self.hold("LEFT")
                 
                 # 如果距離目標還很遠 (>30像素)，邊走邊跳躍以跨越小障礙物
-                # (如果你的掛機平台很平坦，不需要跳躍，可以把下面這兩行註解掉)
                 if abs(x2 - x1) > 30:
                     self.press(JUMP_KEY)
                     time.sleep(0.1) # 給予跳躍動作一點緩衝時間
